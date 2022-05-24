@@ -38,13 +38,27 @@ app = Flask(__name__)
 @app.route("/")
 def welcome():
     return (
-        f"Welcome to the Climate Analysis API!<br/>"
-        f"Available Routes:<br/>"
-        f"/api/v1.0/precipitation<br/>"
-        f"/api/v1.0/stations<br/>"
-        f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/start_date<br/>"
-        f"/api/v1.0/start_end_date")
+        "<b>Welcome to the Climate Analysis API!</b><br/>"
+        "<br/>"
+        "<u>Available Routes:</u><br/>"
+        "<br/>"
+        "/api/v1.0/precipitation<br/>"
+        "<i>This route returns the precipitation measurements for the last 12 months</i><br/>"
+        "<br/>"
+        "/api/v1.0/stations<br/>"
+        "<i>This route lists all station IDs in the database</i><br/>"
+        "<br/>"
+        "/api/v1.0/tobs<br/>"
+        "<i>This route returns the temperature observations for the last 12 months</i><br/>"
+        "<br/>"
+        "/api/v1.0/start_date:<br/>"
+        "<i>This route returns the min, max, and average temperature observations given a start date.</i><br/>"
+        "<i>Note: the date must be formatted like so: 2016-05-03 </i><br/>"
+        "<br/>"
+        "/api/v1.0/start_date/end_date:<br/>"
+        "<i>This route returns the min, max, and average temperature observations between 2 dates in the dataset.</i><br/>"
+        "<i>Note: the two dates must be formatted like so: 2016-05-03/2016-05-10 </i><br/>"
+        )
 
 # precipitation route
 @app.route("/api/v1.0/precipitation")
@@ -116,33 +130,51 @@ def temp_obs():
     return jsonify(temps)
 
 # temperature observations - start date only
-@app.route("/api/v1.0/start_date<start>")
+@app.route("/api/v1.0/start_date:<start_date>")
 def temp_start(start_date):
     # Create our session (link) from Python to the DB
     session = Session(engine)
 
     """Return a list of temperature observations starting from a particular date"""
-
-
-    # Query the dates and temperature observations 
-    results_min = session.query(func.min(Measurement.tobs)).\
-        filter(Measurement.date > start_date).all()
-
-    results_max = session.query(func.max(Measurement.tobs)).\
-        filter(Measurement.date > start_date).all()
-
-    results_avg = session.query(func.avg(Measurement.tobs)).\
-        filter(Measurement.date > start_date).all()
+    results4 = session.query(func.min(Measurement.tobs), func.max(Measurement.tobs), func.avg(Measurement.tobs))\
+        .filter(func.strftime("%Y-%m-%d", Measurement.date) >= func.strftime("%Y-%m-%d", start_date)).all()
 
     session.close()
 
-    # Convert list of tuples into normal list
-    min_temps = list(np.ravel(results_min))
-    max_temps = list(np.ravel(results_max))
-    avg_temps = list(np.ravel(results_avg))
+    temps = []
+    for min, max, avg in results4:
+        temp_dict = {}
+        temp_dict['min'] = min
+        temp_dict['max'] = max
+        temp_dict['avg'] = avg
+        temps.append(temp_dict)
 
-    return jsonify(min_temps, max_temps, avg_temps)
+    return jsonify(temps)
 
+
+# temperature observations - start and end date
+@app.route("/api/v1.0/<start_date>/<end_date>")
+def temp_between(start_date, end_date):
+
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return a list of temperature observations between a start and end date"""
+    results5 = session.query(func.min(Measurement.tobs), func.max(Measurement.tobs), func.avg(Measurement.tobs))\
+        .filter(func.strftime("%Y-%m-%d", Measurement.date) >= func.strftime("%Y-%m-%d", start_date))\
+        .filter(func.strftime("%Y-%m-%d", Measurement.date) <= func.strftime("%Y-%m-%d", end_date)).all()
+
+    session.close()
+
+    temps2 = []
+    for min, max, avg in results5:
+        temp_dict = {}
+        temp_dict['min'] = min
+        temp_dict['max'] = max
+        temp_dict['avg'] = avg
+        temps2.append(temp_dict)
+
+    return jsonify(temps2)
 
 
 # BOILERPLATE
